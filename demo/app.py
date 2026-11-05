@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -108,7 +109,7 @@ if fred_key:
       )
       st.plotly_chart(fig2, use_container_width=True)
 
-    # 第三區塊：AI 總體經濟摘要
+    # 第三區塊：AI 總體經濟摘要 (帶自動重試與模型備援機制)
     st.write("---")
     st.subheader("🤖 AI 總體經濟解讀")
 
@@ -116,34 +117,51 @@ if fred_key:
       if not gemini_key:
         st.warning("請先在側邊欄輸入您的 Gemini API Key！")
       else:
-        with st.spinner("AI 正在分析最新總經數據中..."):
-          try:
-            # 初始化 Google GenAI 用戶端
-            client = genai.Client(api_key=gemini_key)
+        with st.spinner(
+            "AI 正在分析最新總經數據中（若遇伺服器忙碌將自動重試）..."
+        ):
+          success = False
+          models_to_try = ["gemini-3.8-flash", "gemini-2.5-flash"]
 
-            # 組合傳給模型的提示詞與數據上下文
-            prompt = f"""
-                        你是一位專業的華爾街總體經濟分析師。請根據以下最新數據，為投資人撰寫一份精簡的總體經濟短評（大約 200 字左右）：
-                        - 最新 CPI 物價指數：{latest_cpi:.1f}
-                        - 10年期美債殖利率：{latest_rate:.2f}% (變動：{latest_rate - rate_prev:+.2f}%)
-                        - 美國失業率：{latest_unemp:.1f}%
-                        - 聯邦基金利率：{latest_fed:.2f}%
-                        
-                        請從通膨、就業與利率政策的角度切口，分析當前的總經環境與市場可能的解讀。
-                        """
+          for model_name in models_to_try:
+            if success:
+              break
+            for attempt in range(2):
+              try:
+                client = genai.Client(api_key=gemini_key)
 
-            # 調用 gemini-2.5-flash 模型生成內容
-            response = client.models.generate_content(
-                model="gemini-3.8-flash",
-                contents=prompt,
+                prompt = f"""
+                                你是一位專業的華爾街總體經濟分析師。請根據以下最新數據，為投資人撰寫一份精簡的總體經濟短評（大約 200 字左右）：
+                                - 最新 CPI 物價指數：{latest_cpi:.1f}
+                                - 10年期美債殖利率：{latest_rate:.2f}% (變動：{latest_rate - rate_prev:+.2f}%)
+                                - 美國失業率：{latest_unemp:.1f}%
+                                - 聯邦基金利率：{latest_fed:.2f}%
+                                
+                                請從通膨、就業與利率政策的角度切口，分析當前的總經環境與市場可能的解讀。
+                                """
+
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+
+                st.success(f"分析完成！（使用模型：{model_name}）")
+                st.write(response.text)
+                success = True
+                break
+
+              except Exception as ai_e:
+                if "503" in str(ai_e) and attempt < 1:
+                  time.sleep(2)
+                  continue
+                else:
+                  break
+
+          if not success:
+            st.error(
+                "生成摘要失敗：Google AI 伺服器目前流量較大（503 錯誤）。請稍候"
+                " 10-30 秒後再次點擊按鈕即可！"
             )
-
-            # 顯示結果
-            st.success("分析完成！")
-            st.write(response.text)
-
-          except Exception as ai_e:
-            st.error(f"生成摘要失敗，請檢查 Gemini API Key 或網路。錯誤：{ai_e}")
 
   except Exception as e:
     st.error(f"數據讀取失敗，請確認 FRED API Key 是否正確。錯誤訊息: {e}")
