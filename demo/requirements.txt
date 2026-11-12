@@ -5,3 +5,4 @@ fredapi
 yfinance
 google-genai
 feedparser
+google-generativeai
