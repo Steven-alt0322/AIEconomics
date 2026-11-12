@@ -121,7 +121,7 @@ if fred_key:
             "AI 正在分析最新總經數據中（若遇伺服器忙碌將自動重試）..."
         ):
           success = False
-          models_to_try = ["gemini-3.8-flash", "gemini-2.5-flash"]
+          models_to_try = ["gemini-3.5-flash", "gemini-2.5-flash"]
 
           for model_name in models_to_try:
             if success:
