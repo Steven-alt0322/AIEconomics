@@ -4,3 +4,4 @@ plotly
 fredapi
 yfinance
 google-genai
+feedparser
