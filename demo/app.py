@@ -163,7 +163,7 @@ if fred_key:
                                              f"2. 貨幣政策立場判定 (鷹派/鴿派/中立)\n" \
                                              f"3. 重點分析與逐條評分表格 (Markdown Format)"
                                     
-                                    model = genai.GenerativeModel("gemini-2.5-flash")
+                                    model = genai.GenerativeModel("gemini-3.8-flash")
                                     response = model.generate_content(prompt)
                                     st.markdown(response.text)
                                 except Exception as e:
@@ -209,7 +209,7 @@ if fred_key:
                                              f"2. 關鍵技術、供應鏈與財報題重點摘要\n" \
                                              f"3. 對 NVIDIA 短期股價潛在影響與風險評估"
                                     
-                                    model = genai.GenerativeModel("gemini-2.5-flash")
+                                    model = genai.GenerativeModel("gemini-3.8-flash")
                                     response = model.generate_content(prompt)
                                     st.markdown(response.text)
                                 except Exception as e:
@@ -233,7 +233,7 @@ if fred_key:
                                 "2. 🐻 **保守派避險風險總監**（強調供應鏈瓶頸、高估值回撤風險與地緣政治，強調利空）。\n"
                                 "最後請給出一個客觀的總結裁決。請用生動、專業的繁體中文呈現。"
                             )
-                            model = genai.GenerativeModel("gemini-2.5-flash")
+                            model = genai.GenerativeModel("gemini-3.8-flash")
                             res = model.generate_content(debate_prompt)
                             st.markdown(res.text)
                         except Exception as e:
