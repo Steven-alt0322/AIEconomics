@@ -11,7 +11,7 @@ from urllib.parse import quote  # 解決 URL 空白字元轉碼問題
 # 1. 頁面配置與側邊欄金鑰設定
 # ==========================================
 st.set_page_config(page_title="總體經濟、金融與 NLP 市場情緒儀表板", layout="wide")
-st.title("🌐 總體經濟、金融指標與 AI 輿論情緒即時儀表板 (含 NVIDIA 專區)")
+st.title("🌐 總體經濟、金融指標與 AI 輿論情緒即時儀表板")
 
 st.sidebar.header("⚙️ 設定與金鑰")
 
@@ -57,14 +57,11 @@ def get_market_data():
     tickers = {
         "S&P 500": "^GSPC",
         "台灣加權指數": "^TWII",
-        "NVIDIA (輝達)": "NVDA",  # 新增 NVIDIA 股價追蹤
+        "NVIDIA (輝達)": "NVDA",  # 追蹤 NVIDIA 股價
         "布蘭特原油": "BZ=F",
         "美元/台幣匯率": "TWD=X"
     }
-    # yfinance 下載多個 ticker 時可能回傳 MultiIndex，取 Close 欄位
     df = yf.download(list(tickers.values()), period="1y")["Close"]
-    
-    # 確保欄位名稱正確對應
     inv_tickers = {v: k for k, v in tickers.items()}
     df = df.rename(columns=inv_tickers)
     return df
@@ -103,37 +100,49 @@ if fred_key:
 
         st.write("---")
 
-        # 第二區塊：分頁儀表板 (新增 NVIDIA 專區頁籤)
+        # 第二區塊：分頁儀表板
         tab1, tab2, tab3, tab4 = st.tabs([
-            "📈 金融市場與輝達 (yfinance)", 
-            "🏛️ 總體經濟趨勢 (FRED)", 
-            "📰 NLP 市場新聞與鷹鴿情緒",
-            "🤖 NVIDIA 專區與 AI 輿情"
+            "📈 金融市場與相關性", 
+            "🏛️ 總體經濟趨勢", 
+            "📰 NLP 總經新聞與情緒",
+            "🤖 NVIDIA 專區與 AI 多空辯論"
         ])
         
-        # 頁籤 1: 金融市場
+        # 頁籤 1: 金融市場與相關性熱力圖
         with tab1:
-            market_choice = st.selectbox("選擇金融市場標的：", market_df.columns)
+            st.subheader("📈 金融市場走勢與資產聯動性")
+            market_choice = st.selectbox("選擇單一金融市場標的進行檢視：", market_df.columns)
             fig1 = px.line(market_df, y=market_choice, title=f"{market_choice} 近一年走勢")
             st.plotly_chart(fig1, use_container_width=True)
             
+            st.write("---")
+            st.markdown("### 🔗 跨資產相關性矩陣 (Correlation Heatmap)")
+            corr_matrix = market_df.corr()
+            fig_corr = px.imshow(
+                corr_matrix, 
+                text_auto=True, 
+                color_continuous_scale="Blues",
+                title="各大金融標的與輝達近期連動性分析"
+            )
+            st.plotly_chart(fig_corr, use_container_width=True)
+            
         # 頁籤 2: 總體經濟
         with tab2:
+            st.subheader("🏛️ 美國總體經濟指標趨勢")
             macro_choice = st.selectbox("選擇總體經濟指標：", macro_df.columns)
             fig2 = px.line(macro_df, y=macro_choice, title=f"{macro_choice} 近一年走勢")
             st.plotly_chart(fig2, use_container_width=True)
 
         # 頁籤 3: NLP 市場新聞與情緒分析
         with tab3:
-            st.subheader("📰 即時財經新聞與 LLM 鷹鴿派情緒分析")
-            
+            st.subheader("📰 即時總經財經新聞與 LLM 鷹鴿派情緒分析")
             search_kw = st.text_input("🔍 輸入新聞關鍵字 (預設: Federal Reserve Inflation):", value="Federal Reserve Inflation", key="kw_macro")
             news_titles = fetch_google_news(search_kw)
 
             nlp_col1, nlp_col2 = st.columns([1, 1])
 
             with nlp_col1:
-                st.markdown("### 📌 最新財經新聞標題 (RSS)")
+                st.markdown("### 📌 最新總經新聞標題 (RSS)")
                 if news_titles:
                     for i, title in enumerate(news_titles, 1):
                         st.write(f"**{i}.** {title}")
@@ -154,7 +163,7 @@ if fred_key:
                                              f"2. 貨幣政策立場判定 (鷹派/鴿派/中立)\n" \
                                              f"3. 重點分析與逐條評分表格 (Markdown Format)"
                                     
-                                    model = genai.GenerativeModel("gemini-3.8-flash") # 確保模型名稱相容
+                                    model = genai.GenerativeModel("gemini-2.5-flash")
                                     response = model.generate_content(prompt)
                                     st.markdown(response.text)
                                 except Exception as e:
@@ -164,24 +173,22 @@ if fred_key:
                 else:
                     st.warning("👈 請在側邊欄輸入 Gemini API Key 以啟用 AI 文本情緒分析功能。")
 
-        # 頁籤 4: NVIDIA 專區與 AI 輿情
+        # 頁籤 4: NVIDIA 專區與 AI 多空辯論
         with tab4:
-            st.subheader("🚀 NVIDIA (輝達 - NVDA) 即時股價與新聞輿情分析")
+            st.subheader("🚀 NVIDIA (輝達 - NVDA) 即時股價與 AI 智慧輿情")
             
-            # 顯示 NVDA 近期股價走勢
             if "NVIDIA (輝達)" in market_df.columns:
                 fig_nvda = px.line(market_df, y="NVIDIA (輝達)", title="NVIDIA (NVDA) 近一年股價走勢", color_discrete_sequence=["#76b900"])
                 st.plotly_chart(fig_nvda, use_container_width=True)
             
             st.write("---")
             
-            nvda_col1, nvda_col2 = st.columns([1, 1])
-            
-            # 抓取 NVIDIA 最新新聞
             nvda_news = fetch_google_news("NVIDIA AI stock news")
             
+            nvda_col1, nvda_col2 = st.columns([1, 1])
+            
             with nvda_col1:
-                st.markdown("### 📌 NVIDIA 最新新聞標題 (RSS)")
+                st.markdown("### 📌 NVIDIA 最新動態新聞 (RSS)")
                 if nvda_news:
                     for i, title in enumerate(nvda_news, 1):
                         st.write(f"**{i}.** {title}")
@@ -189,20 +196,20 @@ if fred_key:
                     st.warning("目前找不到關於 NVIDIA 的最新新聞。")
                     
             with nvda_col2:
-                st.markdown("### 🤖 Gemini AI 針對 NVIDIA 輿情與投資價值分析")
+                st.markdown("### 🤖 Gemini AI 針對 NVIDIA 輿情分析")
                 if gemini_key:
-                    if st.button("🚀 分析 NVIDIA 輿情與市場影響", type="primary", key="btn_nvda"):
+                    if st.button("🚀 分析 NVIDIA 產業影響與評分", type="primary", key="btn_nvda"):
                         if nvda_news:
-                            with st.spinner("Gemini 正在分析 NVIDIA 相關新聞與市場情緒..."):
+                            with st.spinner("Gemini 正在分析 NVIDIA 相關新聞..."):
                                 try:
                                     nvda_text = "\n".join([f"- {t}" for t in nvda_news])
-                                    prompt = f"你是一位資深半導體與人工智慧產業分析師。請分析以下關於 NVIDIA (輝達) 的新聞標題：\n{nvda_text}\n\n" \
+                                    prompt = f"你是一位資深半導體與人工智慧產業分析師。請分析以下關於 NVIDIA 的新聞標題：\n{nvda_text}\n\n" \
                                              f"請以繁體中文輸出結構化報告：\n" \
                                              f"1. 整體市場情緒分數 (0~100) 與利多/利空判定\n" \
-                                             f"2. 關鍵技術、供應鏈或財報題重點摘要\n" \
-                                             f"3. 對 NVIDIA 短期股價可能的潛在影響與風險評估"
+                                             f"2. 關鍵技術、供應鏈與財報題重點摘要\n" \
+                                             f"3. 對 NVIDIA 短期股價潛在影響與風險評估"
                                     
-                                    model = genai.GenerativeModel("gemini-3.8-flash")
+                                    model = genai.GenerativeModel("gemini-2.5-flash")
                                     response = model.generate_content(prompt)
                                     st.markdown(response.text)
                                 except Exception as e:
@@ -211,6 +218,28 @@ if fred_key:
                             st.warning("尚無足夠的新聞數據供分析。")
                 else:
                     st.warning("👈 請在側邊欄輸入 Gemini API Key 以啟用 AI 分析。")
+
+            st.write("---")
+            st.markdown("### ⚔️ AI 華爾街多空對決辯論賽")
+            if gemini_key and nvda_news:
+                if st.button("🔥 啟動華爾街多空大辯論", type="secondary", key="btn_debate"):
+                    with st.spinner("華爾街極限多頭與保守派風險總監正在激辯中..."):
+                        try:
+                            nvda_text = "\n".join([f"- {t}" for t in nvda_news])
+                            debate_prompt = (
+                                f"基於以下關於 NVIDIA 的最新新聞標題：\n{nvda_text}\n\n"
+                                "請分別以兩個角色撰寫精闢短評：\n"
+                                "1. 🐂 **華爾街極限多頭分析師**（極度看好 AI 需求、資料中心擴張與技術壁壘，強調利多）。\n"
+                                "2. 🐻 **保守派避險風險總監**（強調供應鏈瓶頸、高估值回撤風險與地緣政治，強調利空）。\n"
+                                "最後請給出一個客觀的總結裁決。請用生動、專業的繁體中文呈現。"
+                            )
+                            model = genai.GenerativeModel("gemini-2.5-flash")
+                            res = model.generate_content(debate_prompt)
+                            st.markdown(res.text)
+                        except Exception as e:
+                            st.error(f"辯論生成失敗: {e}")
+            elif not gemini_key:
+                st.info("💡 請先於左側輸入 Gemini API Key 即可解鎖 AI 多空辯論功能。")
 
     except Exception as e:
         st.error(f"數據讀取失敗，請確認 FRED API Key 是否正確。錯誤訊息: {e}")
